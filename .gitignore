@@ -112,3 +112,5 @@ ENV/
 
 # pytorch models
 *.pt
+!src/segment_everything/vendored/PromptGuidedDecoder/Prompt_guided_Mask_Decoder.pt
+
