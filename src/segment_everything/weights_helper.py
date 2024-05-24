@@ -1,4 +1,3 @@
-import pickle
 # import distance map
 from typing import Optional
 from pathlib import Path
@@ -8,6 +7,7 @@ import urllib.request
 import warnings
 import gdown
 import os
+import torch
 
 current_dir = os.path.dirname(__file__)
 
@@ -89,18 +89,13 @@ def get_weights_path(model_type: str) -> Optional[Path]:
 
     return weight_path
 
-def import_results_collection(import_path):
-    data_collection = []
-
-    # print out name of each file in train_dir
-    for file_name in import_path.iterdir():
-        # if extension is pkl
-        if file_name.suffix == '.pkl':
-            with open(file_name, 'rb') as f:
-                data = pickle.load(f)
-                data_collection.append(data)
-
-    return data_collection
+def get_device():
+    if torch.cuda.is_available():
+        return "cuda"
+    elif torch.backends.mps.is_available():
+        return "mps"
+    else:
+        return "cpu"
 
 def create_mobile_sam_model():
     weights_path_VIT = get_weights_path("efficientvit_l2")
@@ -114,5 +109,16 @@ def create_mobile_sam_model():
 
     return mobilesamv2
 
+def create_sam_model(model_type, device=None):
+    if model_type == "MobileSamV2":
+        model = create_mobile_sam_model()
+    else:
+        model = sam_model_registry[model_type](get_weights_path(model_type))
+
+    if device is None:
+        device = get_device()
+    model.to(device)
+
+    return model
 
     

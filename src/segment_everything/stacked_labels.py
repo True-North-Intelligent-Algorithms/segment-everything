@@ -19,7 +19,7 @@ class StackedLabels:
             self.mask_list = mask_list
 
     @staticmethod
-    def create_mask(segmentation, image=None):
+    def create_mask_from_segmentation(segmentation, image=None):
         mask = {}
         mask['segmentation'] = segmentation
         y, x = np.where(segmentation)
@@ -33,12 +33,46 @@ class StackedLabels:
             mask['image'] = image
         return mask
     
+    @staticmethod 
+    def create_mask_from_yolo_bbox(bbox_yolo, image):
+        # need to convert bbox to pixels
+        x, y, w, h = bbox_yolo
+        w = abs(w)
+        h = abs(h)
+        x_min, y_min = (x-w/2, y-h/2)
+        x_max, y_max = x+w/2, y+h/2
+        x_min = x_min * image.shape[1]
+        x_max = x_max * image.shape[1]
+        y_min = y_min * image.shape[0]
+        y_max = y_max * image.shape[0]
+        bbox = [x_min, y_min, x_max, y_max]
+        segmentation = np.zeros(image.shape[:2], dtype=bool)
+        segmentation[int(y_min):int(y_max)+1, int(x_min):int(x_max)+1] = True
+        if segmentation.sum() == 0:
+            print('empty')
+
+        return StackedLabels.create_mask_from_segmentation(segmentation, image)
+    
     @staticmethod    
     def get_bbox(segmentation):
         y, x = np.where(segmentation > 0)
         x_min, x_max = np.min(x), np.max(x)
         y_min, y_max = np.min(y), np.max(y)
         return [x_min, y_min, x_max, y_max]
+    
+    @staticmethod
+    def read_yolo_txt(file_path):
+        with open(file_path, 'r') as file:
+            lines = file.readlines()
+
+        results = []
+        for line in lines:
+            parts = line.strip().split()
+            class_id = int(parts[0])
+            bbox = [float(x) for x in parts[1:]]
+            results.append({'class_id': class_id, 'bbox': bbox})
+
+        return results
 
     @classmethod
     def from_2d_label_image(cls, label_image, image, relabel=True):
@@ -49,13 +83,24 @@ class StackedLabels:
         for region in regionprops(label_image):
             segmentation = np.zeros_like(label_image, dtype=bool)
             segmentation[label_image == region.label] = True
-            mask = cls.create_mask(segmentation, image)
+            mask = cls.create_mask_from_segmentation(segmentation, image)
             mask_list.append(mask)
 
         return cls(mask_list, image, label_image)
+    
+    @classmethod
+    def from_yolo_results(cls, results, image, relabel=True):
+        mask_list = []
+        for result in results:
+            class_id = result['class_id']
+            bbox = result['bbox']
+            mask = cls.create_mask_from_yolo_bbox(bbox, image)
+            mask_list.append(mask)
+
+        return cls(mask_list, image)
 
     def add_segmentation(self, segmentation):
-        stacked_label = self.create_mask(segmentation)
+        stacked_label = self.create_mask_from_segmentation(segmentation)
         self.mask_list.append(stacked_label)
 
     def add_background_results(self, num_background_results=1):
@@ -96,5 +141,11 @@ class StackedLabels:
             _2d_labels = np.max(self.label_image, axis=0)
 
         return _2d_labels
+    
+    def get_bbox_np(self):
+        bboxes = []
+        for mask in self.mask_list:
+            bboxes.append(mask['prompt_bbox'])
+        return np.array(bboxes)
     
     
