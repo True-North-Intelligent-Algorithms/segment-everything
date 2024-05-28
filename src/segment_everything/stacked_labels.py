@@ -104,7 +104,7 @@ class StackedLabels:
         return mask
     
     @staticmethod 
-    def create_mask_from_yolo_bbox(bbox_yolo, image):
+    def create_mask_from_xywhn_bbox(bbox_yolo, image):
         """
         Creates a mask from a YOLO bounding box.
 
@@ -140,7 +140,38 @@ class StackedLabels:
         x_max = x_max * image.shape[1]
         y_min = y_min * image.shape[0]
         y_max = y_max * image.shape[0]
-        bbox = [x_min, y_min, x_max, y_max]
+
+        return StackedLabels.create_mask_from_xyxy_bbox([x_min, y_min, x_max, y_max], image)
+     
+    @staticmethod 
+    def create_mask_from_xyxy_bbox(bbox_yolo, image):
+        """
+        Creates a mask from a YOLO xyxy bounding box.
+
+        Parameters:
+        -----------
+        bbox_yolo : list or tuple
+            The YOLO bounding box 
+            The coordinates and dimensions are normalized to the range [0, 1].
+        image : numpy.ndarray
+            The image on which the bounding box is defined. The shape of the image is used to convert
+            the normalized coordinates and dimensions of the bounding box to pixel values.
+
+        Returns:
+        --------
+        dict
+            A dictionary representing the mask created from the YOLO bounding box. The dictionary contains
+            various attributes such as the segmentation mask, bounding box, point coordinates, area, and
+            other relevant information.
+
+        Notes:
+        ------
+        - The method converts the YOLO bounding box coordinates from normalized values to pixel values
+        based on the dimensions of the input image.
+        - The segmentation mask is created by setting the pixels within the bounding box to True.
+        """
+        # need to convert bbox to pixels
+        x_min, y_min, x_max, y_max = bbox_yolo
         segmentation = np.zeros(image.shape[:2], dtype=bool)
         segmentation[int(y_min):int(y_max)+1, int(x_min):int(x_max)+1] = True
         if segmentation.sum() == 0:
@@ -240,9 +271,42 @@ class StackedLabels:
         return cls(mask_list, image, label_image)
     
     @classmethod
-    def from_yolo_results(cls, results, image):
+    def from_yolo_results(cls, bboxes, classes, image):
         """
         Creates an instance of StackedLabels from YOLO detection results.
+
+        Parameters:
+        -----------
+        results : list
+            A list of dictionaries, each containing the following keys:
+            - 'class_id': int, the class ID of the object.
+            - 'bbox': list of floats, the bounding box coordinates and dimensions in the format 
+            [x_center, y_center, width, height], with values normalized to the range [0, 1].
+        image : numpy.ndarray
+            The input image corresponding to the YOLO detection results. This image is used to create
+            segmentation masks from the bounding boxes.
+
+        Returns:
+        --------
+        StackedLabels
+            An instance of the StackedLabels class, initialized with masks created from the YOLO detection
+            results and the input image.
+        """
+        mask_list = []
+        for i in range(bboxes.shape[0]):
+            class_id = classes[i]
+            bbox = bboxes[i,:]
+
+            mask = cls.create_mask_from_xyxy_bbox(bbox, image)
+            mask_list.append(mask)
+
+        return cls(mask_list, image)
+
+    @classmethod
+    def from_yolo_dictionary(cls, results, image, format='xyxy'):
+        """
+        Creates an instance of StackedLabels from YOLO format dictionary that is often generated when labelling
+        (ie with napari or other bounding box drawing tool)
 
         Parameters:
         -----------
@@ -265,7 +329,11 @@ class StackedLabels:
         for result in results:
             class_id = result['class_id']
             bbox = result['bbox']
-            mask = cls.create_mask_from_yolo_bbox(bbox, image)
+
+            if format == 'xyxy':
+                mask = cls.create_mask_from_xyxy_bbox(bbox, image)
+            else:
+                mask = cls.create_mask_from_xywhn_bbox(bbox, image)
             mask_list.append(mask)
 
         return cls(mask_list, image)
