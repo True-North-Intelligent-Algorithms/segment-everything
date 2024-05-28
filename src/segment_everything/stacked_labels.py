@@ -4,6 +4,58 @@ import numpy as np
 from skimage.measure import label, regionprops
 
 class StackedLabels:
+    """
+    A class to manage and manipulate a list of masks 
+
+    Attributes:
+    -----------
+    image : numpy.ndarray
+        The input image. 
+    label_image : numpy.ndarray
+        The label image where each unique integer represents a different object.
+    mask_list : list
+        A list of masks, each represented as a dictionary containing various attributes such as 
+        segmentation, bounding box, point coordinates, area, etc.  The segmentation attribute contains the 
+        binary representation of the mask. 
+
+    Methods:
+    --------
+    __init__(self, mask_list=None, image=None, label_image=None)
+        Initializes the StackedLabels object with optional mask list, image, and label image.
+    
+    create_mask_from_segmentation(segmentation, image=None)
+        Static method to create a mask dictionary from a segmentation array and optionally an image.
+    
+    create_mask_from_yolo_bbox(bbox_yolo, image)
+        Static method to create a mask dictionary from a YOLO bounding box and an image.
+    
+    get_bbox(segmentation)
+        Static method to calculate the bounding box of a given segmentation array.
+    
+    read_yolo_txt(file_path)
+        Static method to read YOLO format results from a text file.
+    
+    from_2d_label_image(cls, label_image, image, relabel=True)
+        Class method to create a StackedLabels object from a 2D label image and an image.
+    
+    from_yolo_results(cls, results, image, relabel=True)
+        Class method to create a StackedLabels object from YOLO results and an image.
+    
+    add_segmentation(self, segmentation)
+        Adds a new segmentation to the mask list.
+    
+    add_background_results(self, num_background_results=1)
+        Adds empty masks for background regions to the mask list.
+    
+    make_3d_label_image(self)
+        Constructs a 3D label image from the mask list.
+    
+    make_2d_labels(self, type="min")
+        Creates a 2D label image by performing a min or max projection of the 3D label image.
+    
+    get_bbox_np(self)
+        Returns a numpy array of bounding boxes for all masks in the mask list.
+    """
 
     def __init__(self, mask_list=None, image = None, label_image=None):
         self.image = image
@@ -20,6 +72,24 @@ class StackedLabels:
 
     @staticmethod
     def create_mask_from_segmentation(segmentation, image=None):
+        """
+        Initializes the StackedLabels object.
+
+        Parameters:
+        -----------
+        mask_list : list, optional
+            A list of mask dictionaries to initialize with. Each dictionary represents a mask and contains
+            various attributes such as segmentation, bounding box, point coordinates, area, etc.
+            Defaults to an empty list if not provided.
+        image : numpy.ndarray, optional
+            The input image. If provided and is a 2D array, it is converted to a 3-channel image by stacking
+            the 2D array along the last axis. This is done to ensure the image has three channels, which is
+            often required for further processing by SAM models.
+        label_image : numpy.ndarray, optional
+            The label image to initialize with. The label image is a 2D array where each unique integer
+            represents a different object or region. This can be useful for creating masks and further
+            segmenting the image.
+        """
         mask = {}
         mask['segmentation'] = segmentation
         y, x = np.where(segmentation)
@@ -35,6 +105,31 @@ class StackedLabels:
     
     @staticmethod 
     def create_mask_from_yolo_bbox(bbox_yolo, image):
+        """
+        Creates a mask from a YOLO bounding box.
+
+        Parameters:
+        -----------
+        bbox_yolo : list or tuple
+            The YOLO bounding box, typically in the format [x_center, y_center, width, height].
+            The coordinates and dimensions are normalized to the range [0, 1].
+        image : numpy.ndarray
+            The image on which the bounding box is defined. The shape of the image is used to convert
+            the normalized coordinates and dimensions of the bounding box to pixel values.
+
+        Returns:
+        --------
+        dict
+            A dictionary representing the mask created from the YOLO bounding box. The dictionary contains
+            various attributes such as the segmentation mask, bounding box, point coordinates, area, and
+            other relevant information.
+
+        Notes:
+        ------
+        - The method converts the YOLO bounding box coordinates from normalized values to pixel values
+        based on the dimensions of the input image.
+        - The segmentation mask is created by setting the pixels within the bounding box to True.
+        """
         # need to convert bbox to pixels
         x, y, w, h = bbox_yolo
         w = abs(w)
@@ -55,6 +150,22 @@ class StackedLabels:
     
     @staticmethod    
     def get_bbox(segmentation):
+        """
+        Computes the bounding box of a segmentation mask.
+
+        Parameters:
+        -----------
+        segmentation : numpy.ndarray
+            A 2D binary array representing the segmentation mask. Pixels belonging to the segmented
+            object are marked with True (or 1), and the background pixels are marked with False (or 0).
+
+        Returns:
+        --------
+        list
+            A list of four integers representing the bounding box of the segmented object in the format
+            [x_min, y_min, x_max, y_max]. These coordinates define the smallest rectangle that can
+            contain all the True pixels in the segmentation mask.
+        """
         y, x = np.where(segmentation > 0)
         x_min, x_max = np.min(x), np.max(x)
         y_min, y_max = np.min(y), np.max(y)
@@ -62,6 +173,25 @@ class StackedLabels:
     
     @staticmethod
     def read_yolo_txt(file_path):
+        """
+        Reads a YOLO format text file and extracts bounding box information.
+
+        Parameters:
+        -----------
+        file_path : str
+            The path to the YOLO format text file. Each line in the file represents one bounding box and
+            contains the class ID followed by the normalized coordinates and dimensions of the bounding
+            box (x_center, y_center, width, height).
+
+        Returns:
+        --------
+        list
+            A list of dictionaries, each containing the following keys:
+            - 'class_id': int, the class ID of the object.
+            - 'bbox': list of floats, the bounding box coordinates and dimensions in the format 
+            [x_center, y_center, width, height], with values normalized to the range [0, 1].
+
+        """
         with open(file_path, 'r') as file:
             lines = file.readlines()
 
@@ -76,6 +206,27 @@ class StackedLabels:
 
     @classmethod
     def from_2d_label_image(cls, label_image, image, relabel=True):
+        """
+        Creates an instance of StackedLabels from a 2D label image.
+
+        Parameters:
+        -----------
+        label_image : numpy.ndarray
+            A 2D array where each unique integer represents a different object or region. This label image
+            is used to create segmentation masks for each unique region.
+        image : numpy.ndarray
+            The input image corresponding to the label image. 
+            to each mask.
+        relabel : bool, optional
+            If True, the label image is relabeled to ensure that the labels are consecutive integers starting
+            from 1. This can be useful if the label image has gaps, repeat labels or non-sequential labels. Default is True.
+
+        Returns:
+        --------
+        StackedLabels
+            An instance of the StackedLabels class, initialized with masks created from the label image and
+            the input image.
+        """
         if (relabel):
             label_image = label(label_image)
 
@@ -89,7 +240,27 @@ class StackedLabels:
         return cls(mask_list, image, label_image)
     
     @classmethod
-    def from_yolo_results(cls, results, image, relabel=True):
+    def from_yolo_results(cls, results, image):
+        """
+        Creates an instance of StackedLabels from YOLO detection results.
+
+        Parameters:
+        -----------
+        results : list
+            A list of dictionaries, each containing the following keys:
+            - 'class_id': int, the class ID of the object.
+            - 'bbox': list of floats, the bounding box coordinates and dimensions in the format 
+            [x_center, y_center, width, height], with values normalized to the range [0, 1].
+        image : numpy.ndarray
+            The input image corresponding to the YOLO detection results. This image is used to create
+            segmentation masks from the bounding boxes.
+
+        Returns:
+        --------
+        StackedLabels
+            An instance of the StackedLabels class, initialized with masks created from the YOLO detection
+            results and the input image.
+        """
         mask_list = []
         for result in results:
             class_id = result['class_id']
@@ -100,10 +271,28 @@ class StackedLabels:
         return cls(mask_list, image)
 
     def add_segmentation(self, segmentation):
+        """
+        Adds a new dictionary to the mask list.
+
+        Parameters:
+        -----------
+        segmentation : numpy.ndarray
+            A boolean array where True indicates the presence of an object.
+        """
         stacked_label = self.create_mask_from_segmentation(segmentation)
         self.mask_list.append(stacked_label)
 
     def add_background_results(self, num_background_results=1):
+        """
+        Adds empty masks for background regions to the mask list.  this is useful if training a model and we 
+        want to avoid false positives. Thus we add empty masks to represent the background (or objects which should 
+        not be detected).
+
+        Parameters:
+        -----------
+        num_background_results : int, optional
+            The number of background results to add. Defaults to 1.
+        """
 
         for i in range(num_background_results):
             background = (self.label_image == 0)
@@ -123,6 +312,10 @@ class StackedLabels:
             self.mask_list.append(empty_mask)
 
     def make_3d_label_image(self):
+        """
+        Make a 3D label image from the mask list, each layer of the 3D label image will contain a single mask
+        this is useful for visualizing the mask collection
+        """
         num_masks = len(self.mask_list)
         mask_shape = [num_masks, *self.mask_list[0]['segmentation'].shape]
         self.label_image = np.zeros(mask_shape, dtype=np.uint16)
@@ -130,6 +323,14 @@ class StackedLabels:
             self.label_image[i] = mask['segmentation']*(i+1)
 
     def make_2d_labels(self, type="min"):
+        """
+        Make a 2D label image by performing a min or max projection of the 3D label image.
+
+        Returns:
+        --------
+        numpy.ndarray
+            A 2D label image where each unique integer represents a different object or region.
+        """
         self.make_3d_label_image()
 
         if type == "min":
@@ -143,6 +344,14 @@ class StackedLabels:
         return _2d_labels
     
     def get_bbox_np(self):
+        """
+        Get the bounding boxes for all masks in the mask list as a numpy array"
+        
+        Returns:
+        --------
+        numpy.ndarray
+            A numpy array of bounding boxes for all masks in the mask list.
+        """
         bboxes = []
         for mask in self.mask_list:
             bboxes.append(mask['prompt_bbox'])
