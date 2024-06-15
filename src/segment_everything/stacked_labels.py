@@ -152,10 +152,8 @@ class StackedLabels:
         -----------
         bbox_yolo : list or tuple
             The YOLO bounding box 
-            The coordinates and dimensions are normalized to the range [0, 1].
         image : numpy.ndarray
-            The image on which the bounding box is defined. The shape of the image is used to convert
-            the normalized coordinates and dimensions of the bounding box to pixel values.
+            The image on which the bounding box is defined. 
 
         Returns:
         --------
