@@ -70,6 +70,8 @@ class StackedLabels:
         else:
             self.mask_list = mask_list
 
+        self.mask_list = sorted(self.mask_list, key=lambda x: x['area'], reverse=False)
+
     @staticmethod
     def create_mask_from_segmentation(segmentation, image=None):
         """
