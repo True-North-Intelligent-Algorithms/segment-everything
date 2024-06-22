@@ -230,7 +230,7 @@ class StackedLabels:
         for line in lines:
             parts = line.strip().split()
             class_id = int(parts[0])
-            bbox = [float(x) for x in parts[1:]]
+            bbox = [float(x) for x in parts[1:5]]
             results.append({'class_id': class_id, 'bbox': bbox})
 
         return results
@@ -294,7 +294,7 @@ class StackedLabels:
         """
         mask_list = []
         for i in range(bboxes.shape[0]):
-            class_id = classes[i]
+            #class_id = classes[i]
             bbox = bboxes[i,:]
 
             mask = cls.create_mask_from_xyxy_bbox(bbox, image)
