@@ -66,10 +66,10 @@ def segment_from_bbox(img, bounding_boxes, model, device):
     stability_scores = []
 
     image_embedding = predictor.features
-    image_embedding = torch.repeat_interleave(image_embedding, 400, dim=0)
+    image_embedding = torch.repeat_interleave(image_embedding, 200, dim=0)
 
     prompt_embedding = model.prompt_encoder.get_dense_pe()
-    prompt_embedding = torch.repeat_interleave(prompt_embedding, 400, dim=0)
+    prompt_embedding = torch.repeat_interleave(prompt_embedding, 200, dim=0)
 
     for (boxes,) in batch_iterator(200, input_boxes):
         with torch.no_grad():
