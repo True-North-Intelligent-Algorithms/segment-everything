@@ -424,5 +424,8 @@ class StackedLabels:
         for mask in self.mask_list:
             bboxes.append(mask['prompt_bbox'])
         return np.array(bboxes)
+
+    def sort_largest_to_smallest(self):
+        self.mask_list = sorted(self.mask_list, key=lambda x: x['area'], reverse=False)
     
     
