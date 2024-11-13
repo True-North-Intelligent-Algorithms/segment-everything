@@ -1,4 +1,3 @@
-import re
 import numpy as np
 
 from skimage.measure import label, regionprops
