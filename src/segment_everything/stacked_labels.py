@@ -2,6 +2,8 @@ import re
 import numpy as np
 
 from skimage.measure import label, regionprops
+from skimage import color
+from skimage.measure import regionprops
 
 class StackedLabels:
     """
@@ -69,6 +71,9 @@ class StackedLabels:
             self.mask_list = []
         else:
             self.mask_list = mask_list
+
+            for mask in self.mask_list:
+                mask['keep'] = True
 
         self.mask_list = sorted(self.mask_list, key=lambda x: x['area'], reverse=False)
 
@@ -388,7 +393,8 @@ class StackedLabels:
         mask_shape = [num_masks, *self.mask_list[0]['segmentation'].shape]
         self.label_image = np.zeros(mask_shape, dtype=np.uint16)
         for i, mask in enumerate(self.mask_list):
-            self.label_image[i] = mask['segmentation']*(i+1)
+            if mask['keep'] == True:
+                self.label_image[i] = mask['segmentation']*(i+1)
 
     def make_2d_labels(self, type="min"):
         """
@@ -400,6 +406,7 @@ class StackedLabels:
             A 2D label image where each unique integer represents a different object or region.
         """
         self.make_3d_label_image()
+
 
         if type == "min":
             # Create a masked array where zeros are masked
@@ -424,5 +431,157 @@ class StackedLabels:
         for mask in self.mask_list:
             bboxes.append(mask['prompt_bbox'])
         return np.array(bboxes)
+
+    def sort_largest_to_smallest(self):
+        """
+        Sorts the mask list from largest to smallest area.
+        """ 
+        self.mask_list = sorted(self.mask_list, key=lambda x: x['area'], reverse=False)
     
-    
+
+    def add_properties_to_label_image(self):
+        """
+        Add properties to the label image such as area, circularity, solidity, mean intensity, 10th percentile intensity,
+        
+        Returns:
+        --------
+        
+        """
+
+        self.sort_largest_to_smallest()
+        sorted_results = self.mask_list
+
+        hsv_image = color.rgb2hsv(self.image)
+        # switch to this? https://forum.image.sc/t/looking-for-a-faster-version-of-rgb2hsv/95214/12
+
+        hue = 255 * hsv_image[:, :, 0]
+        saturation = 255 * hsv_image[:, :, 1]
+        intensity = 255 * hsv_image[:, :, 2]
+
+        for enum, result in enumerate(sorted_results):
+            segmentation = result["segmentation"]
+            coords = np.where(segmentation)
+            regions = regionprops(segmentation.astype("uint8"))
+
+            # calculate circularity
+            result["circularity"] = (
+                4 * np.pi * regions[0].area / (regions[0].perimeter ** 2)
+            )
+            # for small pixelated objects, circularity can be > 1 so we cap it
+            if result["circularity"] > 1:
+                result["circularity"] = 1
+
+            result["solidity"] = regions[0].solidity
+            intensity_pixels = intensity[coords]
+            result["mean_intensity"] = np.mean(intensity_pixels)
+            result["10th_percentile_intensity"] = np.percentile(
+                intensity_pixels, 10
+            )
+            
+            hue_pixels = hue[coords]
+
+            # Convert hue to radians for circular mean calculation
+            hue_radians = np.deg2rad(hue_pixels)
+
+            # Calculate the circular mean
+            mean_x = np.mean(np.cos(hue_radians))
+            mean_y = np.mean(np.sin(hue_radians))
+            mean_angle = np.arctan2(mean_y, mean_x)
+
+            # Convert back to degrees and normalize to [0, 360]
+            mean_hue = np.rad2deg(mean_angle) % 360
+            result["mean_hue"] = mean_hue
+            
+            saturation_pixels = saturation[coords]
+            result["mean_saturation"] = np.mean(saturation_pixels)
+
+            result['keep'] = True
+            result["label_num"] = enum + 1
+
+
+    def filter_labels_3d_multi(self, stat_limits): 
+        """
+        Filter the labels in the label image based on the stat_limits dictionary.
+        The stat_limits dictionary contains the minimum and maximum values for each statistic that a label must meet
+
+        Parameters:
+        -----------
+        stat_limits : dict
+            A dictionary containing the minimum and maximum values for each statistic that a label must meet.
+            The dictionary should have the following format:
+            {
+                "area": {"min": 100, "max": 1000},
+                "circularity": {"min": 0.5, "max": 1.0},
+                "solidity": {"min": 0.5, "max": 1.0},
+                "mean_intensity": {"min": 100, "max": 200},
+                "10th_percentile_intensity": {"min": 50, "max": 150},
+                "mean_hue": {"min": 0, "max": 100},
+                "mean_saturation": {"min": 0, "max": 100},
+        """
+        sorted_results = self.mask_list
+        label_image = self.label_image
+        
+        for enum, result in enumerate(sorted_results):
+            # Check if the result should be kept based on the limits in stat_limits
+            keep = all(
+                stat_limits[stat]["min"] <= result[stat] <= stat_limits[stat]["max"]
+                for stat in stat_limits
+            )
+           
+            if keep:
+                if result["keep"] == True:
+                    continue
+                result["keep"] = True
+                coords = np.where(result["segmentation"])
+                temp = label_image[enum, :, :]
+                temp[coords] = enum + 1
+            else:
+                if result["keep"] == False:
+                    continue
+                result["keep"] = False
+                coords = np.where(result["segmentation"])
+                temp = label_image[enum, :, :]
+                temp[coords] = 0
+
+   
+    def filter_labels_hue_inverse(self, hue_min, hue_max):
+        """
+            Inverse filter hue.  This is needed because hue wraps around.  For example redish hue goes from
+            about 330 degrees to 30.  Thus to keep only red objects we need to inverse filter (keep everything outside of hue min and max)
+        """
+        sorted_results = self.mask_list
+        label_image = self.label_image
+        
+        for enum, result in enumerate(sorted_results):
+            hue = result["mean_hue"]
+
+            if result["keep"]==True:
+                keep=False
+                if hue < hue_min:
+                    keep = True
+                elif hue > hue_max:
+                    keep = True
+                else:
+                    keep = False
+
+                if keep:
+                    if result["keep"] == True:
+                        continue
+                    result["keep"] = True
+                    coords = np.where(result["segmentation"])
+                    temp = label_image[enum, :, :]
+                    temp[coords] = enum + 1
+                else:
+                    if result["keep"] == False:
+                        continue
+                    result["keep"] = False
+                    coords = np.where(result["segmentation"])
+                    temp = label_image[enum, :, :]
+                    temp[coords] = 0
+ 
+        
+
+                
+        
+            
+            
