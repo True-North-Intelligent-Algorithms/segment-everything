@@ -107,7 +107,7 @@ def _build_sam(
     sam.eval()
     if checkpoint is not None:
         with open(checkpoint, "rb") as f:
-            state_dict = torch.load(f)
+            state_dict = torch.load(f, weights_only=False)
         sam.load_state_dict(state_dict, strict=False)
     return sam
 
@@ -131,7 +131,7 @@ def build_sam_vit_t_encoder(checkpoint=None):
     )
     if checkpoint is not None:
         with open(checkpoint, "rb") as f:
-            state_dict = torch.load(f)
+            state_dict = torch.load(f, weights_only=False)
         mobile_sam.load_state_dict(state_dict["model"], strict=False)
     return mobile_sam
 
@@ -156,7 +156,7 @@ def build_efficientvit_l2_encoder(checkpoint=None):
     )
     image_encoder = EfficientViTSamImageEncoder(backbone, neck)
     set_norm_eps(image_encoder, 1e-6)
-    checkpoints = torch.load(checkpoint)
+    checkpoints = torch.load(checkpoint, weights_only=False)
     checkpoint = checkpoints["state_dict"]
     new_state_dict = {}
     if checkpoint != None:
@@ -196,7 +196,7 @@ def build_sam_vit_h_encoder(checkpoint=None):
     )
     if checkpoint is not None:
         with open(checkpoint, "rb") as f:
-            state_dict = torch.load(f)
+            state_dict = torch.load(f, weights_only=False)
         image_encoder.load_state_dict(state_dict, strict=True)
     return image_encoder
 
@@ -226,7 +226,7 @@ def build_PromptGuidedDecoder(checkpoint=None):
     )
     if checkpoint is not None:
         with open(checkpoint, "rb") as f:
-            state_dict = torch.load(f)
+            state_dict = torch.load(f, weights_only=False)
         promt_dict = state_dict["PromtEncoder"]
         mask_dict = state_dict["MaskDecoder"]
         prompt_encoder.load_state_dict(promt_dict)

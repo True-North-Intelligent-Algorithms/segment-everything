@@ -258,7 +258,7 @@ class Trainer:
         self.save_model(model_name="sync.pt")
         dist.barrier()
         checkpoint = torch.load(
-            os.path.join(self.checkpoint_path, "sync.pt"), map_location="cpu"
+            os.path.join(self.checkpoint_path, "sync.pt"), map_location="cpu", weights_only=False
         )
         dist.barrier()
         if dist.is_master():

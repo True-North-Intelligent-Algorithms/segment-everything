@@ -142,7 +142,7 @@ class RcnnDetector(BaseDetector):
         self.model = fasterrcnn_mobilenet_v3_large_fpn(
             box_detections_per_img=500,
         ).to(self.device)
-        self.model.load_state_dict(torch.load(model_path, map_location=self.device))
+        self.model.load_state_dict(torch.load(model_path, map_location=self.device, weights_only=False))
 
     def train(self, training_data):
         if self.trainable:
