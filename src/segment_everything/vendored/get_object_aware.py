@@ -1,7 +1,7 @@
 import sys
 import os
 
-def get_object_aware_model(path):
+def get_object_aware_model(model_path):
     """ 
     'ObjectAwareModel' is a Yolov8 model that is distributed via the MobileSAMv2 github repo
     
@@ -15,6 +15,8 @@ def get_object_aware_model(path):
     Returns:
         _type_: _description_
     """
+
+    # we need ultralytics on the path to import ObjectAwareModel so these 3 lines of code add it
     current_dir = os.path.dirname(__file__)
     obj_detect_dir = os.path.join(current_dir, "object_detection")
     sys.path.insert(0, obj_detect_dir)
@@ -23,4 +25,4 @@ def get_object_aware_model(path):
         ObjectAwareModel,
     )
 
-    return ObjectAwareModel(path)
+    return ObjectAwareModel(model_path)
