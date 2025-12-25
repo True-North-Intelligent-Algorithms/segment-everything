@@ -59,25 +59,6 @@ class StackedLabels:
     """
 
     def __init__(self, mask_list=None, image = None, label_image=None):
-        self.image = image
-
-        if image is not None and image.ndim == 2:
-            self.image = np.stack([self.image, self.image, self.image], axis=-1)
-        
-        self.label_image = label_image
-
-        if mask_list is None:
-            self.mask_list = []
-        else:
-            self.mask_list = mask_list
-
-            for mask in self.mask_list:
-                mask['keep'] = True
-
-        self.mask_list = sorted(self.mask_list, key=lambda x: x['area'], reverse=False)
-
-    @staticmethod
-    def create_mask_from_segmentation(segmentation, image=None):
         """
         Initializes the StackedLabels object.
 
@@ -96,6 +77,25 @@ class StackedLabels:
             represents a different object or region. This can be useful for creating masks and further
             segmenting the image.
         """
+        self.image = image
+
+        if image is not None and image.ndim == 2:
+            self.image = np.stack([self.image, self.image, self.image], axis=-1)
+
+        self.label_image = label_image
+
+        if mask_list is None:
+            self.mask_list = []
+        else:
+            self.mask_list = mask_list
+
+            for mask in self.mask_list:
+                mask['keep'] = True
+
+        self.mask_list = sorted(self.mask_list, key=lambda x: x['area'], reverse=True)
+
+    @staticmethod
+    def create_mask_from_segmentation(segmentation, image=None):
         mask = {}
         mask['segmentation'] = segmentation
         y, x = np.where(segmentation)
@@ -435,7 +435,7 @@ class StackedLabels:
         """
         Sorts the mask list from largest to smallest area.
         """ 
-        self.mask_list = sorted(self.mask_list, key=lambda x: x['area'], reverse=False)
+        self.mask_list = sorted(self.mask_list, key=lambda x: x['area'], reverse=True)
     
 
     def add_properties_to_label_image(self):
