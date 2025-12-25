@@ -45,7 +45,7 @@ def segment_from_stacked_labels(stacked_labels, model_type, device=None):
 
     return StackedLabels(sam_masks, stacked_labels.image)
 
-def segment_from_bbox(img, bounding_boxes, model, device):
+def segment_from_bbox(img, bounding_boxes, model, device, batch_size: int = 100):
     """
     Segments everything given the bounding boxes of the objects and the mobileSAMv2 prediction model.
     Code from mobileSAMv2
@@ -66,12 +66,12 @@ def segment_from_bbox(img, bounding_boxes, model, device):
     stability_scores = []
 
     image_embedding = predictor.features
-    image_embedding = torch.repeat_interleave(image_embedding, 200, dim=0)
+    image_embedding = torch.repeat_interleave(image_embedding, batch_size, dim=0)
 
     prompt_embedding = model.prompt_encoder.get_dense_pe()
-    prompt_embedding = torch.repeat_interleave(prompt_embedding, 200, dim=0)
+    prompt_embedding = torch.repeat_interleave(prompt_embedding, batch_size, dim=0)
 
-    for (boxes,) in batch_iterator(200, input_boxes):
+    for (boxes,) in batch_iterator(batch_size, input_boxes):
         with torch.no_grad():
             image_embedding = image_embedding[0 : boxes.shape[0], :, :, :]
             prompt_embedding = prompt_embedding[0 : boxes.shape[0], :, :, :]
