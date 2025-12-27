@@ -1,5 +1,14 @@
-import raster_geometry as rg
 import numpy as np
+
+# NumPy 2.0 compatibility shims for older libraries
+if not hasattr(np, "float_"):
+    np.float_ = np.float64
+if not hasattr(np, "int_"):
+    np.int_ = np.int64
+if not hasattr(np, "bool_"):
+    np.bool_ = np.bool_
+
+import raster_geometry as rg
 import matplotlib.pyplot as plt
 from segment_everything.stacked_labels import StackedLabels
 

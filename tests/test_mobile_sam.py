@@ -20,13 +20,24 @@ def test_mobile_sam():
     bounding_boxes = model.get_bounding_boxes(
         image, conf=conf, iou=iou, imgsz=imgsz, max_det=max_det
     )
+
+    print("Detected {} objects".format(len(bounding_boxes)))
+
+    # assert that 8 boxes are detected
+    assert len(bounding_boxes) == 8
+
     
     model = create_mobile_sam_model()
 
     predictor = SamPredictorV2(model)
     predictor.set_image(image)
 
-    sam_masks = segment_from_bbox(bounding_boxes, predictor, model, device)
+    sam_masks = segment_from_bbox(image, bounding_boxes, model, device)
+
+    print("Area of first mask: ", sam_masks[0]['area'])
+    
+    # assert the area is correct
+    assert sam_masks[0]['area'] == 54563.0
 
     #from segment_everything.napari_helper import to_napari
     #to_napari(image, sam_masks) 

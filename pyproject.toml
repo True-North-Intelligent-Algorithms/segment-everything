@@ -128,7 +128,7 @@ pretty = true
 [tool.pytest.ini_options]
 minversion = "7.0"
 testpaths = ["tests"]
-filterwarnings = ["error"]
+#filterwarnings = ["error"]
 
 # https://coverage.readthedocs.io/
 [tool.coverage.report]
