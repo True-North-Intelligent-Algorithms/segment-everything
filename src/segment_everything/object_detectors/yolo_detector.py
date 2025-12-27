@@ -1,14 +1,17 @@
 import cv2
+import sys
+import os
 from segment_everything.object_detectors.base_detector import BaseDetector
-from segment_everything.get_object_aware import get_object_aware_model
+from segment_everything.vendored.object_detection.ultralytics.prompt_mobilesamv2 import ObjectAwareModel
 
 class YoloDetector(BaseDetector):
+
     def __init__(self, model_path, model_type, device, trainable=False):
         super().__init__(model_path)
         self.model_type = model_type
 
         if (model_type == "ObjectAwareModelFromMobileSamV2"):
-            self.model = get_object_aware_model(model_path)
+            self.model = self.get_object_aware_model(model_path)
         else:
             from ultralytics import YOLO
             self.model = YOLO(model_path)
@@ -53,6 +56,27 @@ class YoloDetector(BaseDetector):
         print("Predicting bounding boxes for image data")
         obj_results = self.get_results(image_data, retina_masks, imgsz, conf, iou, max_det)
         return obj_results[0].boxes.xyxy.cpu().numpy()
+
+    def get_object_aware_model(self, model_path):
+        """
+        Returns an instance of ObjectAwareModel (a YOLOv8 model) distributed via the MobileSAMv2 repo.
+
+        This routine is necessary because the torch weights were pickled with their environment,
+        which complicates importing the ObjectAwareModel class. We isolate this import so it is
+        only called when ObjectAwareModel is needed.
+
+        Args:
+            model_path (str): Path to the model weights.
+
+        Returns:
+            ObjectAwareModel: Instantiated YOLOv8 ObjectAwareModel.
+        """
+        # Add ultralytics object detection directory to sys.path for import
+        current_dir = os.path.dirname(__file__)
+        obj_detect_dir = os.path.join(current_dir, "..", "vendored", "object_detection")
+        sys.path.insert(0, obj_detect_dir)
+
+        return ObjectAwareModel(model_path)
 
     def __str__(self):
         s = f"\n{'Model':<10}: {self.model_name}\n"
