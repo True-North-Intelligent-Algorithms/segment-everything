@@ -1,6 +1,6 @@
 from skimage import data
 from segment_everything.weights_helper import get_weights_path
-from segment_everything.prompt_generator import YoloDetector
+from segment_everything.object_detectors.yolo_detector import YoloDetector
 
 def test_bounding_box_detection():
     image = data.coffee()

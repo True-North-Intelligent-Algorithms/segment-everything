@@ -1,7 +1,7 @@
 from skimage import data
 from segment_everything.weights_helper import get_weights_path
 from segment_everything.weights_helper import create_mobile_sam_model
-from segment_everything.prompt_generator import YoloDetector
+from segment_everything.object_detectors.yolo_detector import YoloDetector
 from segment_everything.detect_and_segment import segment_from_bbox
 from segment_everything.vendored.mobilesamv2 import SamPredictor as SamPredictorV2
 
