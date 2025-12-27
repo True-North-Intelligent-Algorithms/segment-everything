@@ -23,7 +23,8 @@ WEIGHTS_URLS = {
     "efficientvit_l2": "https://drive.google.com/uc?id=10Emd1k9obcXZZALiqlW8FLIYZTfLs-xu/l2.pt",
     "ObjectAwareModel_Cell_FT": "https://drive.google.com/uc?id=1efZ40ti87O346dJW5lp7inCZ84N_nugS/ObjectAwareModel_Cell_FT.pt",
     "ObjectAwareModel": "https://drive.google.com/uc?id=1_vb_0SHBUnQhtg5SEE24kOog9_5Qpk5Z/ObjectAwareModel.pt",
-    "PromptGuidedDecoder": "local:vendored/PromptGuidedDecoder/Prompt_guided_Mask_Decoder.pt"
+    "PromptGuidedDecoder": "local:vendored/PromptGuidedDecoder/Prompt_guided_Mask_Decoder.pt",
+    "ObjectAwareModelHuggingFace": "https://huggingface.co/RogerQi/MobileSAMV2/resolve/main/ObjectAwareModel.pt",
 }
 
 @tz.curry
