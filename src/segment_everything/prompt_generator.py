@@ -12,7 +12,7 @@ from torchvision.transforms import ToTensor
 from torchvision.ops import nms
 import torch
 
-from segment_everything.vendored.get_object_aware import get_object_aware_model
+from segment_everything.get_object_aware import get_object_aware_model
 
 class BaseDetector:
     def __init__(self, model_path, trainable=False):
