@@ -1,5 +1,7 @@
-from segment_everything.weights_helper import create_mobile_sam_model
+from segment_everything.mask_detectors.mobilesam import mobilesam_detector
+
 
 def test_download_mobile_sam_weights():
-    model = create_mobile_sam_model()
-    assert model is not None
+    detector = mobilesam_detector(model_type="MobileSamV2", device="cpu")
+    # Ensure the underlying model object was created
+    assert detector.model is not None

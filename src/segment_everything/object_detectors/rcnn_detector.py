@@ -3,9 +3,10 @@ from torchvision.models.detection import fasterrcnn_mobilenet_v3_large_fpn
 from torchvision.transforms import ToTensor
 from torchvision.ops import nms
 import torch
-from segment_everything.object_detectors.base_detector import BaseDetector
+from segment_everything.object_detectors.base_object_detector import BaseObjectDetector
 
-class RcnnDetector(BaseDetector):
+
+class RcnnDetector(BaseObjectDetector):
     def __init__(self, model_path, device, trainable=True):
         super().__init__(model_path, trainable)
         self.model_type = "FasterRCNN"

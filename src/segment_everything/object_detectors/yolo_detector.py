@@ -1,10 +1,10 @@
 import cv2
 import sys
 import os
-from segment_everything.object_detectors.base_detector import BaseDetector
+from segment_everything.object_detectors.base_object_detector import BaseObjectDetector
 from segment_everything.vendored.object_detection.ultralytics.prompt_mobilesamv2 import ObjectAwareModel
 
-class YoloDetector(BaseDetector):
+class YoloDetector(BaseObjectDetector):
 
     def __init__(self, model_path, model_type, device, trainable=False):
         super().__init__(model_path)

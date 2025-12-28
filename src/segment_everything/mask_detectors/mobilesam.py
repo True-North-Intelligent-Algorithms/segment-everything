@@ -1,17 +1,14 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
-from segment_everything.weights_helper import create_sam_model
+from typing import Iterable, List, Dict, Any, Optional, Generator
+from segment_everything.weights_helper import create_sam_model, get_device
 from segment_everything.stacked_labels import StackedLabels
 from segment_everything.vendored.mobilesamv2 import SamPredictor as SamPredictorV2
 from segment_everything.weights_helper import get_device
-from typing import Any, Generator, List
+from segment_everything.mask_detectors.base_mask_detector import BaseMaskDetector
 import torch
 import os
 from segment_anything.utils.amg import calculate_stability_score
 import gc
 
-current_dir = os.path.dirname(__file__)
 
 def batch_iterator(batch_size: int, *args) -> Generator[List[Any], None, None]:
     assert len(args) > 0 and all(
@@ -22,6 +19,7 @@ def batch_iterator(batch_size: int, *args) -> Generator[List[Any], None, None]:
     )
     for b in range(n_batches):
         yield [arg[b * batch_size : (b + 1) * batch_size] for arg in args]
+
 
 def segment_from_stacked_labels(stacked_labels, model_type, device=None):
     """ given stacked labels and a model re-segment all masks by calling sam on each bounding box
@@ -45,10 +43,10 @@ def segment_from_stacked_labels(stacked_labels, model_type, device=None):
 
     return StackedLabels(sam_masks, stacked_labels.image)
 
+
 def segment_from_bbox(img, bounding_boxes, model, device, batch_size: int = 100):
-    """
-    Segments everything given the bounding boxes of the objects and the mobileSAMv2 prediction model.
-    Code from mobileSAMv2
+    """Segments everything given the bounding boxes of the objects and the mobileSAMv2 prediction model.
+    Code moved from detect_and_segment.py
     """
     predictor = SamPredictorV2(model)
     predictor.set_image(img)
@@ -129,3 +127,42 @@ def segment_from_bbox(img, bounding_boxes, model, device, batch_size: int = 100)
             continue
         curr_anns.append(ann)
     return curr_anns
+
+
+class mobilesam_detector(BaseMaskDetector):
+    """Adapter around the MobileSAMv2 segmentation helper in the repo.
+
+    This class provides a small, consistent API:
+      - initialize/load model in constructor
+      - set_image(img)
+      - segment_boxes(boxes) -> list[ann dict]
+    """
+
+    def __init__(self, model_type: str = "MobileSamV2", device: Optional[str] = None):
+        # BaseDetector expects a model_path-like identifier; we use model_type as the model_path
+        super().__init__(model_type, trainable=False)
+        if device is None:
+            device = get_device()
+        self.device = device
+        self.model_type = model_type
+        self.model = create_sam_model(model_type, device)
+        self._image = None
+
+    def set_image(self, image: Any):
+        """Set the image that subsequent segmentations will use."""
+        self._image = image
+
+    def segment_boxes(self, boxes: Iterable, batch_size: int = 100) -> List[Dict[str, Any]]:
+        """Segment a list/array of bounding boxes.
+
+        Args:
+            boxes: array-like of [x1,y1,x2,y2] boxes in image coordinates
+            batch_size: passed to underlying segmentation helper
+
+        Returns:
+            list of annotation dicts matching the format returned by
+            `segment_from_bbox` in `detect_and_segment.py`.
+        """
+        if self._image is None:
+            raise RuntimeError("set_image must be called before segment_boxes")
+        return segment_from_bbox(self._image, boxes, self.model, self.device, batch_size=batch_size)

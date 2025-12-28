@@ -1,9 +1,7 @@
 from skimage import data
 from segment_everything.weights_helper import get_weights_path
-from segment_everything.weights_helper import create_mobile_sam_model
 from segment_everything.object_detectors.yolo_detector import YoloDetector
-from segment_everything.detect_and_segment import segment_from_bbox
-from segment_everything.vendored.mobilesamv2 import SamPredictor as SamPredictorV2
+from segment_everything.mask_detectors.mobilesam import mobilesam_detector
 
 def test_mobile_sam():
     image = data.coffee()
@@ -27,17 +25,14 @@ def test_mobile_sam():
     assert len(bounding_boxes) == 8
 
     
-    model = create_mobile_sam_model()
+    detector = mobilesam_detector(model_type="MobileSamV2", device=device)
+    detector.set_image(image)
+    sam_masks = detector.segment_boxes(bounding_boxes)
 
-    predictor = SamPredictorV2(model)
-    predictor.set_image(image)
+    print("Area of first mask: ", sam_masks[0]["area"])
 
-    sam_masks = segment_from_bbox(image, bounding_boxes, model, device)
-
-    print("Area of first mask: ", sam_masks[0]['area'])
-    
     # assert the area is correct
-    assert sam_masks[0]['area'] == 54563.0
+    assert sam_masks[0]["area"] == 54563.0
 
     #from segment_everything.napari_helper import to_napari
     #to_napari(image, sam_masks) 
