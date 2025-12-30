@@ -82,10 +82,12 @@ class StackedLabels:
         if image is not None and image.ndim == 2:
             self.image = np.stack([self.image, self.image, self.image], axis=-1)
 
-        self.label_image = label_image
+        self._3d_labels = None
+        self._2d_labels = None
+        self.label_image = label_image  # legacy, for backward compatibility (deprecate soon)
 
         if mask_list is None:
-            self.mask_list = []
+                self.mask_list = []
         else:
             self.mask_list = mask_list
 
@@ -114,7 +116,6 @@ class StackedLabels:
         """
         Creates a mask from a YOLO bounding box.
 
-        Parameters:
         -----------
         bbox_yolo : list or tuple
             The YOLO bounding box, typically in the format [x_center, y_center, width, height].
@@ -367,55 +368,64 @@ class StackedLabels:
         """
 
         for i in range(num_background_results):
-            background = (self.label_image == 0)
-            x,y = np.where(background)
+            # Use 2D label image if available, else fallback to zeros
+            bg_shape = self.get_2d_labels().shape if self._2d_labels is not None else self.mask_list[0]['segmentation'].shape
+            background = np.zeros(bg_shape, dtype=bool)
+            x, y = np.where(background == 0)
             empty_mask = {}
-            empty_mask['segmentation'] = np.zeros_like(self.label_image, dtype=bool)
-            empty_mask['indexes'] = [x,y]
-
-            # choose random index for point_coords
+            empty_mask['segmentation'] = np.zeros_like(background, dtype=bool)
+            empty_mask['indexes'] = [x, y]
             idx = np.random.randint(len(x))
             empty_mask['point_coords'] = [[x[idx], y[idx]]]
-
-            # add pointer to image
             if self.image is not None:
                 empty_mask['image'] = self.image
-                
             self.mask_list.append(empty_mask)
 
-    def make_3d_label_image(self):
+    def make_3d_labels(self):
         """
-        Make a 3D label image from the mask list, each layer of the 3D label image will contain a single mask
-        this is useful for visualizing the mask collection
+        Make and return a 3D label image from the mask list, each layer contains a single mask.
+        Returns:
+            numpy.ndarray: 3D label image (num_masks, H, W)
         """
         num_masks = len(self.mask_list)
         mask_shape = [num_masks, *self.mask_list[0]['segmentation'].shape]
-        self.label_image = np.zeros(mask_shape, dtype=np.uint16)
+        labels_3d = np.zeros(mask_shape, dtype=np.uint16)
         for i, mask in enumerate(self.mask_list):
             if mask['keep'] == True:
-                self.label_image[i] = mask['segmentation']*(i+1)
+                labels_3d[i] = mask['segmentation']*(i+1)
+        return labels_3d
 
     def make_2d_labels(self, type="min"):
         """
-        Make a 2D label image by performing a min or max projection of the 3D label image.
-
+        Make and return a 2D label image by projecting the 3D label image.
+        Args:
+            type (str): 'min' or 'max' projection.
         Returns:
-        --------
-        numpy.ndarray
-            A 2D label image where each unique integer represents a different object or region.
+            numpy.ndarray: 2D label image.
         """
-        self.make_3d_label_image()
-
-
+        labels_3d = self.get_3d_labels()
         if type == "min":
-            # Create a masked array where zeros are masked
-            masked_label_image = np.ma.masked_equal(self.label_image, 0)
-            # Perform the min projection on the masked array
-            _2d_labels = np.ma.min(masked_label_image, axis=0).filled(0)
+            masked_label_image = np.ma.masked_equal(labels_3d, 0)
+            labels_2d = np.ma.min(masked_label_image, axis=0).filled(0)
         else:
-            _2d_labels = np.max(self.label_image, axis=0)
+            labels_2d = np.max(labels_3d, axis=0)
+        return labels_2d
 
-        return _2d_labels
+    def get_3d_labels(self):
+        """
+        Returns the 3D label image, computing it if necessary.
+        """
+        if self._3d_labels is None:
+            self._3d_labels = self.make_3d_labels()
+        return self._3d_labels
+
+    def get_2d_labels(self, type="min"):
+        """
+        Returns the 2D label image, computing it if necessary.
+        """
+        if self._2d_labels is None:
+            self._2d_labels = self.make_2d_labels(type=type)
+        return self._2d_labels
     
     def get_bbox_np(self):
         """
@@ -518,7 +528,7 @@ class StackedLabels:
                 "mean_saturation": {"min": 0, "max": 100},
         """
         sorted_results = self.mask_list
-        label_image = self.label_image
+        label_image = self.get_3d_labels()
         
         for enum, result in enumerate(sorted_results):
             # Check if the result should be kept based on the limits in stat_limits
@@ -549,7 +559,7 @@ class StackedLabels:
             about 330 degrees to 30.  Thus to keep only red objects we need to inverse filter (keep everything outside of hue min and max)
         """
         sorted_results = self.mask_list
-        label_image = self.label_image
+        label_image = self.get_3d_labels()
         
         for enum, result in enumerate(sorted_results):
             hue = result["mean_hue"]
