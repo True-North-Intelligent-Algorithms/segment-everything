@@ -41,6 +41,25 @@ class BaseObjectDetector(BaseDetector):
     def get_bounding_boxes(self, image_data, **kwargs):
         raise NotImplementedError()
 
+    def get_microsam_bboxes(self, image_data, **kwargs):
+        """
+        Return bounding boxes formatted for MicroSAM: list of [x1, y1, x2, y2].
+
+        Subclasses that wrap specific detectors should implement this convenience
+        method so notebooks and downstream code can call a single API to get
+        boxes ready for segmentation.
+        """
+        raise NotImplementedError()
+
+    def get_napari_bboxes(self, image_data, **kwargs):
+        """
+        Return bounding boxes formatted for Napari: list of [[y1,x1],[y2,x2]] per box.
+
+        This helper provides a common rectangle format used when adding shapes to
+        Napari viewers.
+        """
+        raise NotImplementedError()
+
 
 # Note: mask-specific base class lives under `mask_detectors/base_mask_detector.py`
 # to keep mask APIs colocated with mask adapter implementations.

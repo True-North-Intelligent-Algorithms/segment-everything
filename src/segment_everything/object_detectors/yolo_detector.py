@@ -1,6 +1,7 @@
 import cv2
 import sys
 import os
+import numpy as np
 from segment_everything.object_detectors.base_object_detector import BaseObjectDetector
 from segment_everything.vendored.object_detection.ultralytics.prompt_mobilesamv2 import ObjectAwareModel
 
@@ -77,6 +78,30 @@ class YoloDetector(BaseObjectDetector):
         sys.path.insert(0, obj_detect_dir)
 
         return ObjectAwareModel(model_path)
+
+    def get_microsam_bboxes(self, image_data, **kwargs):
+        """
+        Return bounding boxes formatted for MicroSAM: list of [x1, y1, x2, y2].
+        """
+        bboxes = self.get_bounding_boxes(image_data, **kwargs)
+
+        bboxes_microsam = []
+        for box in bboxes:
+            bbox_microsam = [box[1], box[0], box[3], box[2]]
+            bboxes_microsam.append(bbox_microsam)
+        return bboxes_microsam
+
+    def get_napari_bboxes(self, image_data, **kwargs):
+        """
+        Return bounding boxes formatted for Napari: list of [[y1,x1],[y2,x2]] per box.
+        """
+        bboxes = self.get_bounding_boxes(image_data, **kwargs)
+
+        napari_boxes = []
+        for box in bboxes:
+            bbox_napari = [[box[1], box[0]], [box[3], box[2]]]
+            napari_boxes.append(bbox_napari)
+        return napari_boxes
 
     def __str__(self):
         s = f"\n{'Model':<10}: {self.model_name}\n"
