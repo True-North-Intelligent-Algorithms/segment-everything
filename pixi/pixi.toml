@@ -22,11 +22,15 @@ appose = "*"
 PyQt5 = "*"
 raster-geometry = "*"
 
-segment-everything = { git = "https://github.com/True-North-Intelligent-Algorithms/segment-everything.git" }
+#segment-everything = { git = "https://github.com/True-North-Intelligent-Algorithms/segment-everything.git" }
 
 # comment this in (and above out) to debug with editable version
-#segment-everything = { path = "../", editable=true}
+segment-everything = { path = "../", editable=true}
 
+
+# we vendored mobilesam in this repository because we were having trouble importing 
+# weights without explicitly adding the source location to the path
+# TODO revisit this and if possible just use mobilesam directly
 #mobile-sam = { git = "https://github.com/ChaoningZhang/MobileSAM.git"}
 
 [target.linux-64.dependencies]
