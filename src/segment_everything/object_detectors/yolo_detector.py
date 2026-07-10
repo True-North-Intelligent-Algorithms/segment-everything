@@ -84,24 +84,46 @@ class YoloDetector(BaseObjectDetector):
         Return bounding boxes formatted for MicroSAM: list of [x1, y1, x2, y2].
         """
         bboxes = self.get_bounding_boxes(image_data, **kwargs)
-
-        bboxes_microsam = []
-        for box in bboxes:
-            bbox_microsam = [box[1], box[0], box[3], box[2]]
-            bboxes_microsam.append(bbox_microsam)
-        return bboxes_microsam
+        return convert_yolo_boxes_to_microsam(bboxes)
 
     def get_napari_bboxes(self, image_data, **kwargs):
         """
         Return bounding boxes formatted for Napari: list of [[y1,x1],[y2,x2]] per box.
         """
         bboxes = self.get_bounding_boxes(image_data, **kwargs)
+        return convert_yolo_boxes_to_napari(bboxes)
 
-        napari_boxes = []
-        for box in bboxes:
-            bbox_napari = [[box[1], box[0]], [box[3], box[2]]]
-            napari_boxes.append(bbox_napari)
-        return napari_boxes
+
+def convert_yolo_boxes_to_microsam(bboxes):
+    """
+    Convert bounding boxes from YOLO format ([x1, y1, x2, y2]) to MicroSAM format ([y1, x1, y2, x2]).
+
+    Args:
+        bboxes: iterable of boxes, each as [x1, y1, x2, y2]
+
+    Returns:
+        list of boxes in MicroSAM format [y1, x1, y2, x2]
+    """
+    bboxes_microsam = []
+    for box in bboxes:
+        bboxes_microsam.append([box[1], box[0], box[3], box[2]])
+    return bboxes_microsam
+
+
+def convert_yolo_boxes_to_napari(bboxes):
+    """
+    Convert bounding boxes from YOLO format ([x1, y1, x2, y2]) to Napari format ([[y1, x1], [y2, x2]]).
+
+    Args:
+        bboxes: iterable of boxes, each as [x1, y1, x2, y2]
+
+    Returns:
+        list of boxes in Napari format [[y1, x1], [y2, x2]]
+    """
+    napari_boxes = []
+    for box in bboxes:
+        napari_boxes.append([[box[1], box[0]], [box[3], box[2]]])
+    return napari_boxes
 
     def __str__(self):
         s = f"\n{'Model':<10}: {self.model_name}\n"
